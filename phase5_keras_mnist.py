@@ -15,28 +15,19 @@ X_test = X_test.reshape(-1, 784).astype('float32') / 255.0
 print(f"Train : {X_train.shape} | Test : {X_test.shape}")
 print(f"Classes uniques : {np.unique(y_train)}")
 
-# TODO : construire le modèle avec keras.Sequential
-#        architecture : Dense(128, relu) -> Dense(64, relu) -> Dense(10, softmax)
-#        préciser input_shape=(784,) sur la première couche
+# Architecture 784-128-64-10 : même logique que le PMC numpy des phases 1-4, en beaucoup moins de code
 model = keras.Sequential([
     keras.layers.Dense(128, activation="relu", input_shape=(784,)),
     keras.layers.Dense(64, activation="relu"),
     keras.layers.Dense(10, activation="softmax"),
     ])
 
-
-# TODO : compiler
-#        optimizer='adam'
-#        loss='sparse_categorical_crossentropy' (étiquettes entières, pas one-hot)
-#        metrics=['accuracy']
+# sparse_categorical_crossentropy : la CCE du cours, mais accepte des étiquettes entières (3) plutôt qu'un one-hot
 model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-
 
 model.summary()
 
-# TODO : entraîner avec model.fit
-#        epochs=5, batch_size=64, validation_split=0.1, verbose=1
-#        stocker dans history, mesurer le temps avec time.time()
+# model.fit remplace toute la boucle d'entraînement codée à la main (forward, loss, backprop, mise à jour)
 start = time.time()
 history = model.fit(X_train, y_train, epochs=5, batch_size=64, validation_split=0.1, verbose=1)
 elapsed = time.time() - start
