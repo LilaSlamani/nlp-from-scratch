@@ -248,3 +248,31 @@ softmax | val_loss = 0.3121 | test_accuracy = 0.9189
 ```
 
 Également dégradé par rapport à `relu`. Softmax force ses sorties à sommer à 1 : utilisée dans une couche cachée, elle écrase artificiellement les valeurs intermédiaires que les couches suivantes ont besoin de recevoir sans contrainte, ce qui nuit à l'apprentissage. Softmax doit rester réservée à la couche de sortie en classification multiclasse.
+
+## Phase 7 : variation du learning rate
+
+Fichier : `phase7_learning_rate.py`. Même architecture (128-64-10) et même activation (`relu`) que la Phase 6 : seul le `learning_rate` de l'optimiseur Adam change (`1e-7`, `1e-3`, `1.0`).
+
+```
+LR    | Label              | Val loss final | Test acc | Temps (s)
+1e-07 | trop petit (1e-7)  | 2.2807          | 0.1856   | 43
+1e-03 | sweet spot (1e-3)  | 0.1059          | 0.9738   | 32
+1e+00 | trop grand (1.0)   | 2.3733          | 0.0980   | 34
+```
+
+### Scénario normal : `lr = 1e-3`
+
+Courbe lisse et convergente (`phase7_lr_curve.png`), `val_loss` proche de `0.1`, `test_accuracy` à `97.4%`.
+
+### Cas limite : `lr = 1e-7`
+
+```
+val_loss par epoch : [2.3125, 2.3053, 2.2982, ..., 2.2558, 2.2488]
+delta epoch1 -> epoch10 : 0.0637
+```
+
+Le réseau apprend, mais un delta de loss de `0.0637` sur 10 epochs (environ 0.006 par epoch) est quasi imperceptible : à ce rythme, il faudrait des centaines d'epochs pour converger. Pas d'erreur, juste un apprentissage inutilisable en pratique.
+
+### Scénario adversarial : `lr = 1.0`
+
+`val_loss` reste bloquée à `2.3733`, proche de `ln(10) ≈ 2.303` : la valeur d'entropie croisée d'une prédiction uniforme sur 10 classes. `test_accuracy` à `9.8%`, au niveau du hasard. Le pas de correction est si grand que le réseau ne fait que sauter d'un mauvais point à un autre sans jamais se rapprocher d'un minimum : il ne prédit rien d'utile.
