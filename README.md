@@ -131,3 +131,44 @@ loss finale = 0.3479  |  accuracy finale = 50.00%
 ```
 
 Le réseau reste très confiant et correct sur 2 points (`0.0012` et `0.9983`), mais devient totalement indécis sur les 2 autres (`0.4996` et `0.5008`, quasiment pile sur la frontière). Le bruit a déplacé exactement les 2 points de la classe "1" dans la zone d'incertitude apprise par le réseau, ce qui donne une loss moyenne modérée (tirée vers le bas par les 2 points sûrs) mais une accuracy à 50% (2 corrects sur 4). Voir `phase3_qualite_boundary_bruit.png` pour la frontière déformée par rapport au scénario normal.
+
+## Phase 4 : spirale 2D, frontière non linéaire visualisée
+
+Fichiers : `phase4_spirale.py` (entraînement) et `phase4_qualite_tests.py` (architecture réduite et bruit fort).
+
+Dataset en spirale (deux classes entrelacées, 400 points), réseau 2-64-64-1 (2 couches cachées ReLU, sortie sigmoid), initialisation He.
+
+**Note** : le cours indique `lr=0.01`, mais avec un gradient divisé par `n` (comme la formule l'indique), la convergence est bien trop lente et devient même instable après 2000 epochs. Comme pour la Phase 2, le corrigé du cours semble utiliser un gradient non divisé par `n`. `lr=0.5` reproduit fidèlement la trajectoire attendue par le cours.
+
+### Scénario normal
+
+Réseau 2-64-64-1, `lr=0.5`, 2000 epochs.
+
+```
+Epoch    0 | Loss: 0.7175 | Accuracy: 48.50%
+Epoch  500 | Loss: 0.5730 | Accuracy: 66.25%
+Epoch 1000 | Loss: 0.3918 | Accuracy: 75.75%
+Epoch 1500 | Loss: 0.2668 | Accuracy: 94.25%
+Loss finale : 0.0129
+Accuracy finale : 100.00%
+```
+
+Accuracy largement au-dessus des 90% attendus. La frontière (`phase4_spirale.png`) suit bien la forme des deux spirales.
+
+### Cas limite : architecture 2-2-1 (une seule couche cachée de 2 neurones)
+
+Au lieu des 2 couches de 64 neurones, une seule couche de 2 neurones : beaucoup moins de représentations disponibles pour épouser une forme aussi tordue que la spirale.
+
+```
+loss finale = 0.6783  |  accuracy finale = 57.50%
+```
+
+Sous-apprentissage net : la frontière (`phase4_qualite_boundary_2-2-1.png`) reste grossière et ne suit pas les spirales, loin des 100% du réseau complet.
+
+### Scénario adversarial : `noise = 0.5` (au lieu de 0.15)
+
+```
+loss finale = 0.0544  |  accuracy finale = 98.50%
+```
+
+Résultat plus robuste qu'attendu : même avec un bruit fort sur la génération des spirales, le réseau 2-64-64-1 reste à 98.5% d'accuracy, à peine en dessous du scénario propre (100%). Contrairement à l'hypothèse du cours (une dégradation notable en dessous de 90%), ce réseau a manifestement assez de capacité (64 neurones par couche cachée) pour s'adapter même à une version très bruitée de la spirale. Voir `phase4_qualite_boundary_bruit05.png` : la frontière est plus irrégulière que le scénario normal, mais reste globalement fidèle à la forme des spirales.
