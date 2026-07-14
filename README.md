@@ -140,36 +140,36 @@ Dataset en spirale (deux classes entrelacées, 400 points), réseau 2-64-64-1 (2
 
 ### Scénario normal
 
-Réseau 2-64-64-1, `lr=0.5`, 2000 epochs.
+Réseau 2-64-64-1, `lr=0.01` (conforme à la consigne), 2000 epochs.
 
 ```
 Epoch    0 | Loss: 0.7175 | Accuracy: 48.50%
-Epoch  500 | Loss: 0.5730 | Accuracy: 66.25%
-Epoch 1000 | Loss: 0.3918 | Accuracy: 75.75%
-Epoch 1500 | Loss: 0.2668 | Accuracy: 94.25%
-Loss finale : 0.0129
-Accuracy finale : 100.00%
+Epoch  500 | Loss: 0.6736 | Accuracy: 51.75%
+Epoch 1000 | Loss: 0.6637 | Accuracy: 62.00%
+Epoch 1500 | Loss: 0.6556 | Accuracy: 71.25%
+Loss finale : 0.6473
+Accuracy finale : 71.50%
 ```
 
-Accuracy largement au-dessus des 90% attendus. La frontière (`phase4_spirale.png`) suit bien la forme des deux spirales.
+En dessous des 90% attendus par le cours. Avec le gradient divisé par `n` et `lr=0.01`, la convergence est trop lente pour ce problème sur 2000 epochs : la frontière (`phase4_spirale.png`) ne suit que grossièrement les spirales, la loss décroît de façon monotone mais n'a pas fini de converger.
 
 ### Cas limite : architecture 2-2-1 (une seule couche cachée de 2 neurones)
 
 Au lieu des 2 couches de 64 neurones, une seule couche de 2 neurones : beaucoup moins de représentations disponibles pour épouser une forme aussi tordue que la spirale.
 
 ```
-loss finale = 0.6783  |  accuracy finale = 57.50%
+loss finale = 0.6878  |  accuracy finale = 52.50%
 ```
 
-Sous-apprentissage net : la frontière (`phase4_qualite_boundary_2-2-1.png`) reste grossière et ne suit pas les spirales, loin des 100% du réseau complet.
+Sous-apprentissage à peine plus marqué que le scénario normal (déjà lui-même sous-entraîné avec `lr=0.01`) : la frontière (`phase4_qualite_boundary_2-2-1.png`) reste grossière et ne suit pas les spirales.
 
 ### Scénario adversarial : `noise = 0.5` (au lieu de 0.15)
 
 ```
-loss finale = 0.0544  |  accuracy finale = 98.50%
+loss finale = 0.6524  |  accuracy finale = 65.50%
 ```
 
-Résultat plus robuste qu'attendu : même avec un bruit fort sur la génération des spirales, le réseau 2-64-64-1 reste à 98.5% d'accuracy, à peine en dessous du scénario propre (100%). Contrairement à l'hypothèse du cours (une dégradation notable en dessous de 90%), ce réseau a manifestement assez de capacité (64 neurones par couche cachée) pour s'adapter même à une version très bruitée de la spirale. Voir `phase4_qualite_boundary_bruit05.png` : la frontière est plus irrégulière que le scénario normal, mais reste globalement fidèle à la forme des spirales.
+Avec `lr=0.01`, le réseau n'a de toute façon pas fini de converger même sur la version propre de la spirale (voir scénario normal), donc la comparaison "90% propre vs bruité" du cours ne s'applique pas directement ici : les deux versions restent sous-entraînées à 2000 epochs. Voir `phase4_qualite_boundary_bruit05.png`.
 
 ## Phase 5 : passage à Keras sur MNIST flatten
 
@@ -215,3 +215,36 @@ val_loss     : 0.1660
 ```
 
 Comparé aux ~4-5s par epoch avec `batch_size=64`, `batch_size=1` est environ **50 fois plus lent**, pour un résultat pas meilleur (`val_accuracy` similaire à celle obtenue dès la première epoch en `batch_size=64`). Le coût d'un batch trop petit : chaque exemple déclenche une mise à jour complète des poids (calcul de gradient, appel de l'optimiseur), et ce surcoût par étape domine largement sur des mini-batches d'un seul exemple, sans bénéfice en qualité d'apprentissage.
+
+## Phase 6 : comparaison des fonctions d'activation
+
+Fichier : `phase6_activations.py`. Même architecture (128-64-10), même dataset MNIST, même nombre d'epochs (10), `Adam(lr=1e-3)` conforme à la consigne : seule l'activation des couches cachées change (`sigmoid`, `tanh`, `relu`).
+
+### Résultat
+
+```
+Activation | Val loss epoch 10 | Test accuracy | Epoch < 0.1 loss | Temps (s)
+sigmoid    | 0.0705             | 0.9760        | 5                 | 50
+tanh       | 0.0839             | 0.9747        | 3                 | 50
+relu       | 0.1006             | 0.9778        | 2                 | 50
+```
+
+`relu` converge le plus vite (sous 0.1 dès l'epoch 2, contre 3 pour `tanh` et 5 pour `sigmoid`), confirmant l'affirmation du cours sur la vitesse initiale. Mais la courbe (`phase6_activations_curve.png`) montre qu'à partir de l'epoch 3-4, `relu` et `tanh` se remettent à sur-apprendre (`val_loss` qui remonte), alors que `sigmoid`, plus lente à démarrer, continue de descendre sans interruption. Résultat à l'epoch 10 : `sigmoid` a la meilleure `val_loss` (0.0705), pas parce qu'elle généralise mieux (`relu` a la meilleure `test_accuracy`, 0.9778), mais parce qu'elle est encore en phase de descente quand `relu`/`tanh` ont déjà dépassé leur point optimal.
+
+### Cas limite : pas d'activation dans les couches cachées (`"linear"`)
+
+Fichier : `phase6_qualite_tests.py`. Sans argument `activation`, Keras applique une activation linéaire (identité) : plusieurs couches linéaires empilées équivalent à une seule couche linéaire.
+
+```
+linear | val_loss = 0.2532 | test_accuracy = 0.9175
+```
+
+Nettement moins bon que `relu` (`0.1006` / `0.9778`) : sans non-linéarité, le réseau ne peut pas apprendre les patterns complexes des chiffres manuscrits.
+
+### Scénario adversarial : softmax dans les couches cachées
+
+```
+softmax | val_loss = 0.3121 | test_accuracy = 0.9189
+```
+
+Également dégradé par rapport à `relu`. Softmax force ses sorties à sommer à 1 : utilisée dans une couche cachée, elle écrase artificiellement les valeurs intermédiaires que les couches suivantes ont besoin de recevoir sans contrainte, ce qui nuit à l'apprentissage. Softmax doit rester réservée à la couche de sortie en classification multiclasse.
