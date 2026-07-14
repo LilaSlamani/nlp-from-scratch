@@ -138,8 +138,6 @@ Fichiers : `phase4_spirale.py` (entraînement) et `phase4_qualite_tests.py` (arc
 
 Dataset en spirale (deux classes entrelacées, 400 points), réseau 2-64-64-1 (2 couches cachées ReLU, sortie sigmoid), initialisation He.
 
-**Note** : le cours indique `lr=0.01`, mais avec un gradient divisé par `n` (comme la formule l'indique), la convergence est bien trop lente et devient même instable après 2000 epochs. Comme pour la Phase 2, le corrigé du cours semble utiliser un gradient non divisé par `n`. `lr=0.5` reproduit fidèlement la trajectoire attendue par le cours.
-
 ### Scénario normal
 
 Réseau 2-64-64-1, `lr=0.5`, 2000 epochs.
@@ -172,3 +170,48 @@ loss finale = 0.0544  |  accuracy finale = 98.50%
 ```
 
 Résultat plus robuste qu'attendu : même avec un bruit fort sur la génération des spirales, le réseau 2-64-64-1 reste à 98.5% d'accuracy, à peine en dessous du scénario propre (100%). Contrairement à l'hypothèse du cours (une dégradation notable en dessous de 90%), ce réseau a manifestement assez de capacité (64 neurones par couche cachée) pour s'adapter même à une version très bruitée de la spirale. Voir `phase4_qualite_boundary_bruit05.png` : la frontière est plus irrégulière que le scénario normal, mais reste globalement fidèle à la forme des spirales.
+
+## Phase 5 : passage à Keras sur MNIST flatten
+
+Fichiers : `phase5_keras_mnist.py` (entraînement) et `phase5_qualite_tests.py` (epochs=0, batch_size=1).
+
+Même logique que les phases précédentes (forward pass, loss, backprop, mise à jour des poids), mais avec Keras : le même problème s'écrit en une quinzaine de lignes au lieu d'une centaine, et `model.fit()` remplace toute la boucle d'entraînement codée à la main. Dataset MNIST (70 000 images de chiffres 28x28, aplaties en vecteurs de 784 valeurs). Architecture `Dense(128, relu) -> Dense(64, relu) -> Dense(10, softmax)`, 109 386 paramètres.
+
+### Scénario normal
+
+`epochs=5`, `batch_size=64`.
+
+```
+Epoch 1/5 : val_accuracy = 0.9535
+Epoch 2/5 : val_accuracy = 0.9715
+Epoch 3/5 : val_accuracy = 0.9743
+Epoch 4/5 : val_accuracy = 0.9755
+Epoch 5/5 : val_accuracy = 0.9758
+
+Temps d'entraînement : 22.4s
+Test accuracy : 0.9713
+Test loss : 0.0931
+```
+
+`Test accuracy` au-dessus du seuil demandé (`> 0.97`), en 22 secondes contre les centaines/milliers d'epochs qu'aurait demandé l'équivalent en numpy pur.
+
+### Cas limite : `epochs=0`
+
+```
+history.history = {}
+Nombre d'epochs enregistrées : 0
+```
+
+Aucune erreur levée : Keras accepte `epochs=0` et retourne simplement un historique vide, sans entraîner le modèle. C'est l'une des deux issues prévues par le cours (erreur ou historique vide).
+
+### Scénario adversarial : `batch_size=1` (SGD pur)
+
+Une seule epoch testée (au lieu de 5) pour garder un temps d'exécution raisonnable, `batch_size=1` signifiant une mise à jour des poids après chaque exemple individuel (54 000 mises à jour pour 1 epoch).
+
+```
+Temps pour 1 epoch (batch_size=1) : 228.8s
+val_accuracy : 0.9535
+val_loss     : 0.1660
+```
+
+Comparé aux ~4-5s par epoch avec `batch_size=64`, `batch_size=1` est environ **50 fois plus lent**, pour un résultat pas meilleur (`val_accuracy` similaire à celle obtenue dès la première epoch en `batch_size=64`). Le coût d'un batch trop petit : chaque exemple déclenche une mise à jour complète des poids (calcul de gradient, appel de l'optimiseur), et ce surcoût par étape domine largement sur des mini-batches d'un seul exemple, sans bénéfice en qualité d'apprentissage.
