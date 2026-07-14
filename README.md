@@ -89,3 +89,45 @@ epoch 8 : loss = 0.0753
 epoch 9 : loss = 0.0695
 epoch 50 : loss = 0.0210
 ```
+
+## Phase 3 : XOR, échec du neurone unique, victoire de la couche cachée
+
+Fichiers : `phase3_xor.py` (entraînement) et `phase3_qualite_tests.py` (architecture 2-1-1 et bruit sur les coordonnées).
+
+XOR n'est pas linéairement séparable (les classes sont sur les diagonales opposées du carré) : un neurone unique ne peut donc jamais le résoudre, quelle que soit la façon dont on l'entraîne. Une couche cachée (architecture 2-2-1) le résout : chaque neurone caché apprend sa propre séparation linéaire, et la couche de sortie les combine en une frontière non linéaire.
+
+### Scénario normal
+
+Réseau 2-2-1, `learning_rate = 0.5`, 10 000 epochs.
+
+```
+Epoch     0 | Loss: 0.7516 | Accuracy: 50.00%
+Epoch  2000 | Loss: 0.0466 | Accuracy: 100.00%
+Epoch  4000 | Loss: 0.0081 | Accuracy: 100.00%
+Epoch  6000 | Loss: 0.0043 | Accuracy: 100.00%
+Epoch  8000 | Loss: 0.0030 | Accuracy: 100.00%
+Loss finale : 0.0022
+Accuracy finale : 100.00%
+```
+
+Accuracy 100% bien avant 10 000 epochs, frontière de décision non linéaire visible sur `phase3_xor_boundary.png`.
+
+### Cas limite : architecture 2-1-1 (1 seul neurone caché)
+
+Un seul neurone caché ne peut tracer qu'une seule séparation linéaire, et XOR a besoin d'au moins 2 séparations combinées pour être reconstruit. Avec 1 seul neurone caché, le réseau retombe sur la même limite qu'un neurone unique (Phase 1-2).
+
+```
+y_pred = [0.5006 0.4963 0.5038 0.4994]  vs  y_true = [0 1 1 0]
+loss finale = 0.6931  |  accuracy finale = 50.00%
+```
+
+Le réseau ne discrimine rien (prédictions collées à 0.5, loss égale à `-log(0.5)`, accuracy au niveau du hasard). Voir `phase3_qualite_boundary_2-1-1.png` : la frontière est quasi uniforme, sans découpage visible.
+
+### Scénario adversarial : 5% de bruit sur les coordonnées XOR
+
+```
+y_pred = [0.0012 0.4996 0.9983 0.5008]  vs  y_true = [0 1 1 0]
+loss finale = 0.3479  |  accuracy finale = 50.00%
+```
+
+Le réseau reste très confiant et correct sur 2 points (`0.0012` et `0.9983`), mais devient totalement indécis sur les 2 autres (`0.4996` et `0.5008`, quasiment pile sur la frontière). Le bruit a déplacé exactement les 2 points de la classe "1" dans la zone d'incertitude apprise par le réseau, ce qui donne une loss moyenne modérée (tirée vers le bas par les 2 points sûrs) mais une accuracy à 50% (2 corrects sur 4). Voir `phase3_qualite_boundary_bruit.png` pour la frontière déformée par rapport au scénario normal.
